@@ -1,6 +1,9 @@
 import asyncio
+import concurrent.futures
 import csv
+import os
 import random
+import string
 import time
 from concurrent.futures import ThreadPoolExecutor
 from io import BytesIO
@@ -35,44 +38,40 @@ executor = ThreadPoolExecutor()
 async def process_excel(request: Request):
     excel_data = await request.body()
 
-    # Read the Excel file as a pandas DataFrame
     df = pd.read_excel(BytesIO(excel_data))
 
-    # Perform data transformation asynchronously
-    transformed_df = await asyncio.get_event_loop().run_in_executor(
-        executor, perform_data_transformation, df
-    )
+    grouped_df = df.groupby('ProductType')
 
-    # Convert the transformed DataFrame to a CSV string
-    csv_string = transformed_df.to_csv(index=False)
+    # Create the folder path for output files
+    random_num = ''.join(random.choices(string.ascii_lowercase + string.digits, k=8))
+    folder_path = f"E:/Dev/Data/Working/{random_num}"
+    os.makedirs(folder_path)
 
-    # Create an in-memory byte stream from the CSV string
-    output = BytesIO()
-    output.write(csv_string.encode("utf-8"))
-    output.seek(0)
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        tasks = []
+        for product_type, group_df in grouped_df:
+            task = executor.submit(perform_data_transformation, group_df, folder_path, product_type, random_num)
+            tasks.append(task)
 
-    # Return the byte stream as a streaming response with the appropriate headers
-    return StreamingResponse(
-        output, media_type="text/csv", headers={"Content-Disposition": "attachment; filename=processed_file.csv"}
-    )
+        # Wait for all tasks to complete
+        concurrent.futures.wait(tasks)
+
+    # Return the folder path containing all output files
+    return folder_path
 
 
-def perform_data_transformation(df):
+def perform_data_transformation(df, folder_path, product_type, random_num):
     # Perform your actual data transformation logic here
-    # This function will run in a separate thread
+
+    # Create a new DataFrame for each task
+    transformed_df = df.copy()
 
     # Perform your processing on the dataframe
-    # Replace this with your actual processing logic
-    # Here, we are simply doubling the values in the 'Value' column
-    df['vv'] = df['vv'] + " process"
-    
-    # For example, let's add a new column with transformed values
-    df['TransformedValue'] = df['Value'] * 2
+    transformed_df['Value'] = transformed_df['Value'] * 2
+
+    # Save the transformed DataFrame as an XLSX file
+    xlsx_file_path = os.path.join(folder_path, f"{product_type}_processed_{random_num}.xlsx")
+    transformed_df.to_excel(xlsx_file_path, index=False)
 
     # Simulate some computational delay
-    # asyncio.sleep()  # Note: Removed the "await" keyword here
-    
-    print(df)    
-    time.sleep(random.randrange(0,10))
-    print("done")
-    return df
+    time.sleep(random.randrange(0, 10))
