@@ -1,0 +1,10 @@
+name: py311
+channels:
+  - conda-forge
+dependencies:
+  - python=3.11
+  - fastapi
+  - uvicorn
+  - sqlalchemy
+  - pandas
+  - aiocron

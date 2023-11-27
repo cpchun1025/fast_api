@@ -15,6 +15,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from starlette.requests import Request
 
+import app.routers.background
 from app.databases import crud, models, schemas
 from app.databases.database import SessionLocal, engine
 
@@ -31,6 +32,19 @@ background_router = APIRouter(
 )
 
 executor = ThreadPoolExecutor()
+
+@router.post("/scan-database")
+async def scan_database(background_tasks: BackgroundTasks):
+    # This endpoint is optional and can be used to manually trigger the background task
+
+    # Simulate fetching records from the database with status = 0
+    records = [1, 2, 3, 4, 5]  # Replace this with your actual code to fetch records
+
+    for record_id in records:
+        # Add a background task for each record
+        background_tasks.add_task(app.routers.background.process_record, record_id)
+
+    return {"message": "Scanning database records"}
 
 @router.post('/process_excel')
 async def process_excel(request: Request, background_tasks: BackgroundTasks):
