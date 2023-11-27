@@ -21,14 +21,27 @@ async def scheduled_task():
 
 @router.on_event("startup")
 async def startup_event():
-    # Start the cron scheduler
-    aiocron.start()  # Starts all scheduled tasks
+    @aiocron.crontab("*/5 * * * *")  # Run every 5 seconds
+    async def scheduled_task():
+        await my_task()
+
+    scheduled_task.start()
 
 
 @router.on_event("shutdown")
 async def shutdown_event():
-    # Stop the cron scheduler
-    aiocron.stop()  # Stops all scheduled tasks
+    aiocron.stop_all_jobs()
+    
+# @router.on_event("startup")
+# async def startup_event():
+#     # Start the event loop
+#     asyncio.create_task(scheduled_task())
+
+
+# @router.on_event("shutdown")
+# async def shutdown_event():
+#     # Stop the event loop
+#     scheduled_task.stop()
 
 
 @router.get("/")
